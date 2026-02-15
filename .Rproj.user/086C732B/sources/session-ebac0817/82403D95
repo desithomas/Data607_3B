@@ -1,9 +1,9 @@
 {
     "id": "82403D95",
-    "path": "~/Desktop/Data_607/Data_607_3B/6063B.Rmd",
-    "project_path": "6063B.Rmd",
+    "path": "~/Desktop/Data_607/Data_607_3B/6073B.Rmd",
+    "project_path": "6073B.Rmd",
     "type": "r_markdown",
-    "hash": "0",
+    "hash": "3120230861",
     "contents": "",
     "dirty": false,
     "created": 1770936142906.0,
@@ -17,11 +17,11 @@
         "scrollLine": "0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1770937337,
+    "lastKnownWriteTime": 1771184716,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1770937337661,
+    "last_content_update": 1771184716,
     "read_only": false,
     "read_only_alternatives": []
 }

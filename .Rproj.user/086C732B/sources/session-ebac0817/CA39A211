@@ -1,7 +1,7 @@
 {
     "id": "CA39A211",
-    "path": "~/Desktop/Data_607/Data_607_3B/6063B.qmd",
-    "project_path": "6063B.qmd",
+    "path": "~/Desktop/Data_607/Data_607_3B/6073B.qmd",
+    "project_path": "6073B.qmd",
     "type": "quarto_markdown",
     "hash": "0",
     "contents": "",
@@ -22,11 +22,11 @@
         "rmdVisualModeLocation": "2:0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1770937471,
+    "lastKnownWriteTime": 1771184702,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1770937471942,
+    "last_content_update": 1771184702,
     "read_only": false,
     "read_only_alternatives": []
 }
