@@ -27,7 +27,7 @@ library(tidyverse)
 library(zoo)
 library(lubridate)
 
-time_series_data <- read_csv("retail_data.csv")
+time_series_data <- read_csv("https://raw.githubusercontent.com/desithomas/Data607_3B/refs/heads/main/retail_data.csv")
 
 glimpse(time_series_data)
 ```
