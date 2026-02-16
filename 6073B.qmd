@@ -5,10 +5,199 @@ format: html
 editor: visual
 ---
 
-#Approach
+*Intro*
 
-For this assignment, I had CoPilot (an LLM) generate a time-series dataset of synthetic data. It covers the years 2022 - 2026, tracking the sales performance of 8 grocery items. I will use window functions to calculate the Year-to-Date Average and also the 6-day moving average.
+The goal of this assignment was to implement Window Functions in either SQL using Postgres or dplyr in R. Initially, I began in Postgres but eventually switched over to dplyr to take advantage of it's reproducibility and the zoo library, along with it's wonderful integration with ggplot2.
 
-Steps: Use dplyr for the window function, load in my file, Enforce formatting for the date column. I will use a window function for the item and date. I will also use a window function for the Year-To-Date average.
+*Analysis & Conclusion*
 
-Some potential challenges: Managing the dates/time: because this is a multi-year dataset, I need to ensure data completenes, especially for the window functions.
+Window functions were used in this assignment to determine the Year to Date (YTD) (expanding window) average and the six-day moving averages for each item in the dataset. I used CoPilot to generate a dataset that included time series for two or more separate items. The data CoPilot generated was related to 'retail' (grocery store type items). It generated generous amounts of data - 9 columns and over 12,000 rows of data; it is efficient for testing partitions and the window logic.
+
+I created visualizations using ggplot() for this assignment. For the six day moving average (sliding window), the price of Apples, Bread and Bananas were relatively stable. However, cereal and milk had notable declines in their price. There are two groups of visualizations -- the first one was generated and ggplot producted a warning that 40 rows had been removed; this typically represents the beginning of the year for the various items in the dataset where the 6-day average can't be calculated. 'Group 2' of the visualizations had that warning removed by filtering. Chicken's prices fluctuate often.
+
+The items with the most concerning long term trend for the "store owner" are Cereal and Milk, as they have had a consistent price decline throughout the years.
+
+To verify my work, I could manually calculate the average of a day and the previous 5 days. This to prevent me/us from being entirely reliant on the outputs of the plots. I could potentially also verify the number of NAs. To extend this work and mimic a production environment with a client, calculating the difference in the percentage of the 'Regular Price' and the Six Day Moving Average, to identify spikes or strong changes in the market or potential data entries made by staff or automated data entry. In the future, the Lead() function could also be implemented to compare today's price with a future price. Outlier detection for prices would also be an interesting feature to implement and would be useful to a business. Together, these extensions can lead to diagnosing or preventing future fluctuations or over spending on grocery inventory by the store.
+
+*Load libraries and Dataset*
+
+```{r}
+#
+library(tidyverse)
+library(zoo)
+library(lubridate)
+
+time_series_data <- read_csv("retail_data.csv")
+
+glimpse(time_series_data)
+```
+
+```{r}
+# Window function that processes the items at the same time
+# This block processes all items (Apples, Milk, Bread, etc.) at the same time.
+results <- time_series_data %>%
+  # sorts by item and date then pipes into a group by 
+  arrange(item, date) %>%
+  #prevents the average from being calculated for the entire dataset, focuses on the item
+  group_by(item) %>%
+  
+  #Window function calculations; mutate
+  mutate(
+    moving_avg_6d = rollmean(price_usd, k = 6, fill = NA, align = "right")
+  ) %>%
+  
+  #The YTD Partition 
+  group_by(item, year = year(date)) %>%
+  mutate(ytd_avg = cummean(price_usd)) %>%
+  ungroup() #stops errors later in the code
+```
+
+```{r}
+# Visualization section
+ggplot(results, aes(x = date)) + geom_line(aes(y = price_usd, color = "Regular Price"), alpha = 0.7, linewidth = 0.4) +
+  
+  # Trend lines
+  geom_line(aes(y = moving_avg_6d, color = "Six Day Moving Average"), linewidth = 1) +
+  geom_line(aes(y = ytd_avg, color = "YTD Average"), linetype = "dashed", linewidth = 0.8) +
+  
+  # item grouping
+  facet_wrap(~item, scales = "free_y") +
+  
+  # Scale colors, going for easy visibility/contrast
+  scale_color_manual(values = c(
+    "Regular Price" = "grey30",         
+    "Six Day Moving Average" = "#E41A1C", 
+    "YTD Average" = "#377EB8"     
+  )) +
+  
+  #Labels for the lab and titles
+  labs(title = "Retail Price Analysis: Trends",
+       subtitle = "Comparing Price Changes with Moving and YTD Averages",
+       x = "Date", y = "Price (USD)", color = "Easier to See") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+results %>%
+  # Filtered out the NA's; beginning of the year
+  filter(!is.na(moving_avg_6d)) %>%
+  ggplot(aes(x = date)) +
+  geom_line(aes(y = price_usd, color = "Regular Price"), alpha = 0.7, linewidth = 0.4) +
+  
+  
+  geom_line(aes(y = moving_avg_6d, color = "Six Day Moving Avg"), linewidth = 1) +
+  geom_line(aes(y = ytd_avg, color = "YTD Average"), linetype = "dashed", linewidth = 0.8) +
+  
+  # Visual Partitioning
+  facet_wrap(~item, scales = "free_y") +
+  
+  # Professional Color Palette
+  scale_color_manual(values = c(
+    "Regular Price" = "grey30",         
+    "Six Day Moving Avg" = "#E41A1C",
+    "YTD Average" = "#377EB8"       
+  )) +
+  
+  labs(title = "Retail Price Analysis: Filtered Trends (Day 6+)",
+       subtitle = "Removed non-existent data",
+       x = "Date", y = "Price (USD)", color = "Metric") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+*Transcript*
+
+\`\`\`
+
+explain creating a window function to me without providing any code, Guide me and walk me through it.
+
+Gemini said To understand a window function deeply, you have to stop thinking like a spreadsheet user and start thinking like a Data Scientist.
+
+In a standard calculation (like a summary), you collapse data—100 rows go in, 1 row comes out. In a Window Function, you calculate a value for every single row based on its relationship to other rows. Many go in, many come out.
+
+Here is the step-by-step conceptual guide to creating one, following the logic of your assignment.
+
+Step 1: Establish the Timeline (Ordering) Before you can calculate an average "over time," the computer must know what "time" means. If your data is a pile of random dates, the "previous row" isn't actually "yesterday"—it's just a random row.
+
+The Logic: You must force a chronological order. This ensures that when the function looks "backwards," it is looking at the actual past.
+
+The "Why": Without this, your moving average is mathematically valid but logically garbage.
+
+Step 2: Build the "Walls" (Partitioning) You have Apples, Milk, and Bread in one file. If you don't "wall them off," the computer will try to average the last day of Apples with the first day of Milk.
+
+The Logic: This is called Partitioning. You tell the system to treat each item as its own independent universe.
+
+The "Why": It prevents "Data Leakage." The price of Milk should never influence the moving average of Apples.
+
+Step 3: Define the "Frame" (The Window Shape) This is where you decide how much of the past to care about. There are two primary "shapes" you are using for Assignment 3B:
+
+The Sliding Window (Moving Average): Imagine a physical window frame that only fits 6 rows. As you move down the list, the "top" row falls out of the frame and a "new" row enters from the bottom. It always only knows about the most recent 6 days.
+
+The Expanding Window (Year-to-Date): Imagine a window that is fixed at the top (January 1st) but has a bottom that stretches. Every day you move down, the window gets one row taller. It has a "perfect memory" of everything that happened since the start of the year.
+
+Why use the zoo library for this? You asked for the benefits of zoo within a tidyverse workflow. Here is the critical, professional reality:
+
+Specialization over Generalization: dplyr is a general-purpose data manipulator. It is great at the "Walls" (Partitioning) and the "Timeline" (Ordering). However, it doesn't have a native "Sliding Window" tool. zoo was built specifically for time-series math.
+
+The "Burn-in" Logic: zoo is smart enough to know that on Day 1, a 6-day average is impossible. It marks those rows as "Missing" (NA). A manual calculation might try to give you an answer using only 1 day of data, which would be a "noisy" and incorrect representation of a 6-day trend.
+
+Computational Efficiency: As a Data Scientist, you care about scale. zoo is written in a way that allows it to "slide" through millions of rows almost instantly. Doing this manually with loops would be a "shiny object" that wastes your processing power.
+
+Academic Alignment: Your professor specifically highlighted zoo on Slide 26 of Meetup 3. Using the specialized tool mentioned in the requirements shows you can navigate the professional ecosystem of R packages.
+
+Mental Audit: The "Flat Data" Trap Earlier, you noticed the average wasn't changing for the first 7 rows of Apples.
+
+Deep Understanding: A window function is a mirror. If the price is a flat \$1.29 every day, the average of \$1.29 and \$1.29 will always be \$1.29.
+
+The Lesson: Don't assume the code is broken just because the output is static. If the input (the price) doesn't move, the "smoothed" line shouldn't move either. This is exactly what you should see in a stable market.
+
+Does this conceptual "Three Pillar" approach (Ordering, Partitioning, Framing) help you visualize what the code is doing behind the scenes? This is exactly how you would explain it in a technical interview.
+
+You said Review the syntax for the YTD window function and six day moving functions
+
+Gemini said To master these window functions for your assignment, you need to visualize the data flow. Both functions require three specific components: Ordering, Partitioning, and the Frame.
+
+Here is the structural review of the syntax for both, following the specifications in your course slides.
+
+1.  Six-Day Moving Average (Sliding Window) This function creates a fixed-size frame that "slides" down the dataset.
+
+Logic: group_by(item) %\>% mutate(moving_avg_6d = rollmean(price_usd, k = 6, fill = NA, align = "right"))
+
+The Component Breakdown:
+
+The Partition (group_by): This is essential. It tells R to calculate the average for "Apples" and then start completely over for "Milk." Without this, the first 5 days of Milk would be averaged with the last 5 days of Apples.
+
+The Frame (k = 6): This defines the window size.
+
+The Alignment (align = "right"): This is the most professional setting for time-series. It ensures that today's average only includes today and the five days before it. If you used "center", you would be "leaking" future data into today's average.
+
+The Burn-in (fill = NA): This handles the technical reality that you cannot have a 6-day average on Day 1. It places an NA in those slots, which accounts for the 40 missing values you observed in your plot.
+
+2.  Year-to-Date Average (Expanding Window) Unlike the sliding window, this frame has a fixed starting point (the first day of the year) and grows one row larger every day.
+
+Logic: group_by(item, year = year(date)) %\>% mutate(ytd_avg = cummean(price_usd))
+
+The Component Breakdown:
+
+The Dual Partition: Note that we group by both item and year. This ensures that on January 1st of 2023, the calculation "forgets" 2022 and starts fresh.
+
+The Function (cummean): This is a specialized dplyr window function. It is mathematically identical to saying "Sum everything from the start to now, and divide by the number of days passed."
+
+The Static Result: As you observed with the Apple data, if the price is a constant \$1.29, the ytd_avg will remain \$1.29. The window is still expanding, but because the new data is identical to the old data, the mean does not move.
+
+3.  The Required Foundation: arrange() The most common mistake in window function syntax is forgetting the Order.
+
+Syntax: arrange(item, date)
+
+Reasoning: Window functions are positional. They do not "know" that January 2nd comes after January 1st; they only know that Row 2 comes after Row 1. If your data isn't sorted, your 6-day moving average will be averaging random points in time rather than a chronological trend.
+
+Summary for your Code Base When you review your final .qmd file, ensure the pipeline follows this exact order:
+
+Arrange (Set the timeline)
+
+Group (Set the walls)
+
+Mutate (Apply the window).
+
+This sequence mirrors the PostgreSQL logic of ORDER BY, PARTITION BY, and ROWS BETWEEN, which is the core objective of Assignment 3B.
+
+Google DeepMind. (2026). Gemini 3 Thinking \[Large Language Model\]. https://gemini.google.com. Accessed February 15th, 2026.
